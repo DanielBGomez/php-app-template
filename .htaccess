@@ -1,0 +1,23 @@
+<IfModule mod_rewrite.c>
+	RewriteEngine On
+	Options -Indexes
+	RewriteBase /apptemplate/
+	#
+	# Prohibir el acceso a la carpeta contents
+	# redirigiendo a la página principal
+	#
+	RewriteRule ^contents/(.*)$ /$1 [R=301,NC,L]
+	#
+	# Permitir que se pueda acceder a los recursos
+	# PHP sin escribir la extensión.
+	#
+	RewriteRule ^index\.php$ - [L]
+	RewriteCond %{REQUEST_FILENAME} !-d
+	RewriteCond %{REQUEST_FILENAME}.php -f
+	RewriteRule ^(.*)$ $1.php
+	#
+	# Redirigir todas las solicitudes de recursos
+	# no existentes al index.php principal
+	#
+	RewriteRule . /apptemplate/index.php [L]
+</IfModule>
