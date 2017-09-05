@@ -44,6 +44,9 @@
 			** APP_IN_ROOT : (bool) Contiene el valor de si la 
 			** aplicación se encuentra en la raíz del servidor.
 			**
+			** SECURE : (bool) Contiene el valor de si la aplicación
+			** utilizará solo HTTPS.
+			**
 			** SCHEME : (string) Protocolo por el cual se solicita
 			** la aplicación.
 			**
@@ -71,6 +74,7 @@
 					($parentDomain && preg_match("/$parentDomain/", $_SERVER['HTTP_HOST']) ) ||
 					( $subdomain && preg_match("/$subdomain/", $_SERVER['HTTP_HOST']) )
 				) );
+			define('SECURE', (LIVE_SERVER && isset($config['alwaysUseHTTPS']) && $config['alwaysUseHTTPS']) );
 			define('SCHEME', (isset($_SERVER['HTTP_X_FORWARDED_PROTO'])) ? $_SERVER['HTTP_X_FORWARDED_PROTO'] : 'http');
 			define('HTTP_URL', (APP_IN_ROOT) ? SCHEME."://".$_SERVER['HTTP_HOST']."/" : SCHEME."://".$_SERVER['HTTP_HOST']."/".APP_DIR);
 			define('DISK_URL', $_SERVER['DOCUMENT_ROOT'].'/'.APP_DIR);
@@ -119,7 +123,7 @@
 			** ErrorReporting : Si se configuró que se muestren los
 			** errores, se muestran :v
 			*/
-			if(LIVE_SERVER && isset($config['alwaysUseHTTPS']) && $config['alwaysUseHTTPS'] && !preg_match("/https:/", HTTP_URI)){
+			if(SECURE && !preg_match("/https:/", HTTP_URI)){
 				header('Location: https://'.str_replace('http://','',HTTP_URI));
 				exit;
 			}
@@ -131,6 +135,10 @@
 			if(isset($config['errorReporting']) && $config['errorReporting']){
 				error_reporting(1);
 			}
+			/*
+			** EJECUCION DE FUNCIONES PRINCIPALES
+			*/
+			$this->sec_session_start();
 		}
 		function __destruct(){}
 
@@ -142,7 +150,7 @@
 		}
 
 		private function isIP($ip){
-		    return filter_var($ip, FILTER_VALIDATE_IP);
+			return filter_var($ip, FILTER_VALIDATE_IP);
 		}
 
 		private function get_http_uri(){
@@ -170,9 +178,48 @@
 			}
 		}
 
+		private function sec_session_start() {
+			$session_name = 'sec_session_id';   // Configura un nombre de sesión personalizado.
+			$secure = SECURE;
+			// Esto detiene que JavaScript sea capaz de acceder a la identificación de la sesión.
+			$httponly = true;
+			// Obliga a las sesiones a solo utilizar cookies.
+			if (ini_set('session.use_only_cookies', 1) === FALSE) {
+				header("Location: ".HTTP_URL.'no-secure-login');
+				exit();
+			}
+			// Obtiene los params de los cookies actuales.
+			$cookieParams = session_get_cookie_params();
+			session_set_cookie_params($cookieParams["lifetime"],
+				$cookieParams["path"], 
+				$cookieParams["domain"], 
+				$secure,
+				$httponly);
+			// Configura el nombre de sesión al configurado arriba.
+			session_name($session_name);
+			session_start();			// Inicia la sesión PHP.
+			session_regenerate_id();	// Regenera la sesión, borra la previa. 
+		}
+
 		public function error_code($code = ''){
 			echo $code;
 			http_response_code($code);
 			exit;
+		}
+
+		public function end_session(){
+			// Desconfigura todos los valores de sesión.
+			$_SESSION = array();
+			// Obtiene los parámetros de sesión.
+			$params = session_get_cookie_params();
+			// Borra el cookie actual.
+			setcookie(session_name(),
+					'', time() - 42000, 
+					$params["path"], 
+					$params["domain"], 
+					$params["secure"], 
+					$params["httponly"]);
+			// Destruye sesión. 
+			session_destroy();
 		}
 	}

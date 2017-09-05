@@ -8,6 +8,6 @@
 	** A diferencia de cualquier otro control, este solo
 	** puede procesar una página 'PAGE' debido a que
 	** si se le agrega un valor en el URL se buscará un
-	** control para ese 
+	** control dentro de contents.
 	*/
 	echo 1; exit;
